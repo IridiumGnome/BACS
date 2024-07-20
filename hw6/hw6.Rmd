@@ -1,0 +1,173 @@
+---
+output:
+  pdf_document:
+    latex_engine: xelatex
+---
+
+## Student ID: 112077423
+
+```{r message=FALSE}
+library(ggplot2)
+library(compstatslib)
+library(tidyr)
+library(FSA)
+```
+
+```{r}
+alpha <- 0.05
+
+df1 <- read.csv('pls-media1.csv')
+df2 <- read.csv('pls-media2.csv')
+df3 <- read.csv('pls-media3.csv')
+df4 <- read.csv('pls-media4.csv')
+
+tmp <- list(df1, df2, df3, df4)
+```
+
+## Question 1
+
+```{r}
+par(mfrow=c(2,2))
+means <- c()
+cnt <- 1
+for (i in tmp){
+  means <- append(means, mean(i$INTEND.0))
+  ttl <- paste('Distribution of intention to share', cnt)
+  plot(density(i$INTEND.0), lwd=2, main=ttl, cex.main=0.9)
+  abline(v=tail(means, n=1), lty="dashed",lw=0.5)
+  out <- paste('Mean of intention to share', cnt, '->', lapply(tail(means, n=1), round, 2))
+  print(out)
+  cnt <- cnt + 1
+}
+```
+
+Looking at the visualization, I believe media type does make a difference in the intention to share. I think the most successful is the 4th type.
+
+## Question 2
+
+**(a)**
+
+H0: the means of intention to share for given 4 datasets are the same
+
+Ha: the means of intention to share for given 4 datasets are the different
+
+**(b)**
+
+```{r}
+media1 <- df1$INTEND.0
+media2 <- df2$INTEND.0
+media3 <- df3$INTEND.0
+media4 <- df4$INTEND.0
+
+mean_of_means <- mean(means)
+stds <- c(sd(media1), sd(media2), sd(media3), sd(media4))
+n <- c(length(media1), length(media2), length(media3), length(media4))
+
+mstr <- (sum(n * (means - mean_of_means)^2)) / 3
+mse <- (sum((n-1)*stds^2)) / (sum(n) - 4)
+F_stat <- mstr / mse
+
+out1 <- paste('MSTR:', round(mstr,1))
+out2 <- paste('MSE', round(mse,1))
+out3 <- paste('F:', round(F_stat,2))
+cat(out1, out2, out3, sep='\n')
+
+critical_val <- qf(p=0.95, df1=3, df2=(sum(n) - 4))
+p_value <- pf(F_stat, 3, (sum(n) - 4), lower.tail=FALSE)
+out1 <- paste('p_value:', p_value)
+out2 <- paste('critical value:', round(critical_val,2))
+cat(out1, out2, sep='\n')
+```
+Since the p-value (0.052) is larger than the level of significance (0.05), we fail to reject the null hypothesis. Besides, since the F statistic is not higher than the critical value, then the difference among groups is not statistically significant
+
+**(c)**
+
+```{r}
+# to avoid recycling
+length(media1) <- 46
+length(media2) <- 46
+length(media3) <- 46
+# transform into long format
+df <- data.frame(cbind(media1, media2, media3, media4))
+df_long <- gather(df, key = 'type', value = 'score', na.rm = TRUE)
+dim(df_long)
+```
+
+```{r}
+anova_model <- aov(df_long$score ~ factor(df_long$type))
+summary(anova_model)
+```
+The results are similar to the above.
+
+**(d)**
+
+```{r}
+TukeyHSD(anova_model, conf.level = 0.95)
+```
+
+We can see from the output that there is no statistically significant difference between the mean of intention to share for each media type at the 0.05 significance level.
+
+**(e)**
+
+```{r}
+variance <- c(var(df1$INTEND.0), var(df2$INTEND.0), var(df3$INTEND.0), var(df4$INTEND.0))
+cat(variance)
+
+par(mfrow=c(2,2))
+
+norm_qq_plot <- function(values) {
+  probs1000 <- seq(0, 1, 0.001)
+  q_vals <- quantile(values, probs1000)
+  q_norm <- qnorm(probs1000, mean=mean(values), sd=sd(values))
+  plot(q_norm, q_vals)
+  abline(a=0, b=1, col="red", lwd=2)
+}
+
+norm_qq_plot(df1$INTEND.0)
+norm_qq_plot(df2$INTEND.0)
+norm_qq_plot(df3$INTEND.0)
+norm_qq_plot(df4$INTEND.0)
+```
+
+As we can see, each intention to share a variable is not perfectly normally distributed. Also, the variance of the variables is not really the same for all media types. The observations are probably independent. However, ANOVA is robust to minor violations of normality and variances, so classic requirements of one-way ANOVA were met.
+
+## Question 3
+
+**(a)**
+
+H0: All groups would give similar value if randomly drawn from them
+
+Ha: At least one group would give a larger value than another if randomly drawn
+
+**(b)**
+
+```{r}
+ranks <- rank(df_long$score)
+groups <- split(ranks, as.factor(df_long$type))
+sums <- sapply(groups, sum)
+
+H <- (12/(sum(n)*(sum(n)+1))) * (sum(sums^2/n)) - 3 * (sum(n) + 1)
+out1 <- paste('H value:', round(H, 2))
+k <- 4
+kw_p <- 1 - pchisq(H, df = k-1)
+out2 <- paste('p value:', kw_p)
+cat(out1, out2, sep='\n')
+```
+
+Since the p-value (0.037) is smaller than the level of significance (0.05), H value is significant, we reject the null hypothesis. 
+
+**(c)**
+
+```{r}
+kruskal.test(score ~ type, data = df_long)
+```
+
+The results are similar to the above.
+
+**(d)**
+
+```{r message=FALSE}
+dunnTest(score ~ as.factor(type), data = df_long, method = "bonferroni")
+```
+
+At alpha = .05, media2 and media4 are the only two medias that are statistically significantly different from each other.

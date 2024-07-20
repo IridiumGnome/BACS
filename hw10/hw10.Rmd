@@ -1,0 +1,194 @@
+---
+output:
+  pdf_document:
+    latex_engine: xelatex
+---
+
+## Student ID: 112077423
+
+```{r message=FALSE}
+library(ggplot2)
+library(compstatslib)
+library(data.table)
+library(tidyr)
+library(lsa)
+```
+
+```{r}
+cars <- read.table("auto-data.txt", header=FALSE, na.strings = "?")
+
+names(cars) <- c("mpg", "cylinders", "displacement", "horsepower", "weight", 
+                 "acceleration", "model_year", "origin", "car_name")
+
+cars_log <- with(cars, data.frame(log(mpg), log(weight), log(acceleration), 
+                                  model_year, origin))
+head(cars_log)
+```
+
+## Question 1(a)
+
+```{r}
+mean_wt <- log(mean(cars$weight))
+lw <- cars_log[cars_log$log.weight. < mean_wt,]
+hw <- cars_log[cars_log$log.weight. > mean_wt,]
+
+lw_regr <- lm(log.mpg. ~ log.acceleration., data=lw)
+hw_regr <- lm(log.mpg. ~ log.acceleration., data=hw)
+
+ggplot() +
+  geom_point(data = lw, aes(x=log.acceleration., y=log.mpg., color='light')) +
+  geom_point(data = hw, aes(x=log.acceleration., y=log.mpg., color='heavy')) +
+  geom_abline(slope=lw_regr$coefficients[2], intercept=lw_regr$coefficients[1], color="cyan4") +
+  geom_abline(slope=hw_regr$coefficients[2], intercept=hw_regr$coefficients[1], color="coral") +
+  labs(title='acceleration vs. mpg', color='Cars') +
+  theme_minimal()
+```
+
+## Question 1(b)
+
+```{r}
+full_lw_regr <- lm(log.mpg. ~ . - origin + factor(origin), data=lw) 
+summary(full_lw_regr)
+```
+
+The model is significant at alpha=0.01. Adjusted R-squared is 0.72, meaning that ~72% of variation in the dependent variable can be explained by the variation in the independent variables. All the variables are significant at alpha=1% except log.acceleration. and origin.
+
+```{r}
+full_hw_regr <- lm(log.mpg. ~ . - origin + factor(origin), data=hw) 
+summary(full_hw_regr)
+```
+
+The model is significant at alpha=0.01. Adjusted R-squared is 0.71, meaning that ~71% of variation in the dependent variable can be explained by the variation in the independent variables. All the variables are significant at alpha=1% except log.acceleration. and origin.
+
+## Question 1(c)
+
+- For heavy cars, there are only two countries present;
+
+- mpg is higher for light cars;
+
+- Looking at the scatter plot, heavy cars' mpg rises more as acceleration increases.
+
+## Question 2(a)
+
+I think weight is a moderator and acceleration is an independent variable.
+
+## Question 2(b)
+
+```{r}
+model1 <- lm(log.mpg. ~ . - origin + factor(origin), data=cars_log)
+summary(model1)
+```
+
+```{r}
+model2 <- lm(log.mpg. ~ log.weight. + log.acceleration. + 
+             log.weight. * log.acceleration. + 
+             model_year + factor(origin), data=cars_log)
+summary(model2)
+```
+
+```{r}
+acl_mc <- scale(cars_log$log.acceleration., center=TRUE, scale=FALSE)
+wt_mc <- scale(cars_log$log.weight., center=TRUE, scale=FALSE)
+
+model3 <- lm(cars_log$log.mpg. ~ wt_mc + acl_mc +
+             wt_mc * acl_mc + 
+             cars_log$model_year + factor(cars_log$origin))
+summary(model3)
+```
+
+```{r}
+wt_x_acl <- cars_log$log.weight. * cars_log$log.acceleration.
+interaction_regr <- lm(wt_x_acl ~ cars_log$log.weight. + cars_log$log.acceleration.)
+interaction_ortho <- interaction_regr$residuals
+
+model4 <- lm(cars_log$log.mpg. ~ cars_log$log.weight. + cars_log$log.acceleration. + 
+             cars_log$model_year + factor(cars_log$origin) + interaction_ortho)
+summary(model4)
+```
+
+## Question 2(c)
+
+```{r}
+# raw
+cor(cbind(log.mpg = cars_log$log.mpg.,
+          log.weight.=cars_log$log.weight., log.acceleration.=cars_log$log.acceleration.,
+          intxn = cars_log$log.weight. * cars_log$log.acceleration.))
+```
+- The correlation between that interaction term and log.weight. is 0.108
+
+- The correlation between that interaction term and log.acceleration. is 0.852
+
+```{r}
+# mean-centered
+tmp <- cor(cbind(log.mpg = cars_log$log.mpg.,
+                 wt_mc=wt_mc, acl_mc=acl_mc, intxn = wt_mc * acl_mc))
+colnames(tmp) <- c('log.mpg', 'wt_mc', 'acl_mc', 'intxn')
+rownames(tmp) <- c('log.mpg', 'wt_mc', 'acl_mc', 'intxn')
+tmp
+```
+ 
+- The correlation between that interaction term and mean-centered weight is -0.2
+
+- The correlation between that interaction term and mean-centered accelaration is 0.35
+
+```{r}
+# orthogonalized
+round(cor(cbind(log.mpg = cars_log$log.mpg.,
+                log.weight.=cars_log$log.weight.,
+                log.acceleration.=cars_log$log.acceleration., interaction_ortho)), 2)
+```
+
+- The correlation between that interaction term and log.weight. is 0
+
+- The correlation between that interaction term and log.acceleration. is 0
+
+## Question 3(a)
+
+```{r}
+cars_log <- with(cars, data.frame(log(mpg), log(weight), log(acceleration),
+                                  log(cylinders), model_year, origin))
+head(cars_log)
+```
+
+```{r}
+model1 <- lm(log.weight. ~ log.cylinders., data=cars_log)
+summary(model1)
+```
+
+log.cylinders. is significant at alpha=0.01.
+
+```{r}
+model2 <- lm(log.mpg. ~ log.weight. + log.acceleration. + 
+             model_year + factor(origin), data=cars_log)
+summary(model2)
+```
+
+The weight has a significant direct effect on mpg at alpha=0.01. 
+
+## Question 3(b)
+
+```{r}
+tmp <- model1$coefficients[2] * model2$coefficients[2]
+cat('indirect effect of cylinders on mpg =', tmp, sep=' ')
+```
+## Question 3(c)
+
+```{r}
+boot_mediation <- function(model1, model2, dataset) {
+  boot_index <- sample(1:nrow(dataset), replace=TRUE)
+  data_boot <- dataset[boot_index, ]
+  regr1 <- lm(model1, data_boot)
+  regr2 <- lm(model2, data_boot)
+  return(regr1$coefficients[2] * regr2$coefficients[2])
+}
+
+set.seed(645218)
+
+indirect <- replicate(2000, boot_mediation(model1, model2, cars_log))
+quantile(indirect, probs=c(0.025, 0.975))
+```
+
+```{r}
+plot(density(indirect), main='distribution of the indirect effect', lwd=1.5)
+abline(v=quantile(indirect, probs=c(0.025, 0.975)), lw=1.5, lty='dashed', col='red')
+```

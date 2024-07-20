@@ -1,0 +1,188 @@
+---
+title: ''
+output: pdf_document
+---
+
+## Student ID: 112077423
+
+```{r message=FALSE}
+library(ggplot2)
+library(compstatslib)
+library(tidyr)
+```
+
+```{r}
+data <- read.csv('verizon_wide.csv', header=TRUE)
+head(data)
+```
+## Question 1
+
+**(a)** 
+
+I'll use tidyr since reshape2 was deprecated for tidyr. A deprecated package is one where the maintainer has encouraged people to use other packages instead.
+
+**(b)**
+
+```{r}
+df_long <- gather(data, na.rm = TRUE, key = 'customer', value = 'time')
+```
+
+**(c)**
+
+```{r}
+head(df_long)
+tail(df_long)
+```
+
+**(d)**
+
+```{r}
+customers <- split(x=df_long$time, f=df_long$customer)
+plot(density(customers$ILEC), col='blue', lwd=1.5, xlim=c(0, 130), main='Distribution of Verizon’s response times')
+lines(density(customers$CLEC), col='red', lwd=1.5)
+legend('topright', lty=1, legend=c("ILEC", "CLEC"), col=c("blue", "red"), inset=.02)
+```
+
+## Question 2
+
+**(a)**
+
+H0: u(CLEC) - u(ILEC) <= 0
+
+Ha: u(CLEC) - u(ILEC) > 0  
+
+**(b)**
+
+```{r}
+alpha <- 0.01
+result_same <- t.test(customers$CLEC, customers$ILEC, alt="greater", var.equal=TRUE)
+result_diff <- t.test(customers$CLEC, customers$ILEC, alt="greater", var.equal=FALSE)
+
+print(result_same)
+print(result_diff)
+
+if (result_same$p.value < alpha) {
+  print('Considering that population standard deviations are equal: reject null hypothesis') 
+} else { 
+  print('Considering that population standard deviations are equal: fail to reject null hypothesis')
+}
+
+
+if (result_diff$p.value < alpha) {
+  print('Considering that population standard deviations are not equal: reject null hypothesis') 
+} else {
+  print('Considering that population standard deviations are not equal: fail to reject null hypothesis')
+}
+```
+
+**(c)**
+
+```{r}
+observed_diff <- mean(customers$CLEC) - mean(customers$ILEC)
+
+permute_diff <- function(values, groups) {
+  permuted <- sample(values, replace = FALSE)
+  grouped <- split(permuted, groups)
+  permuted_diff <- mean(grouped$CLEC) - mean(grouped$ILEC)
+  return(permuted_diff)
+}
+
+nperms <- 10000
+permuted_diffs <- replicate(nperms, permute_diff(df_long$time, df_long$customer))
+
+hist(permuted_diffs, breaks = "fd", probability = TRUE, main='Distribution of permuted differences')
+lines(density(permuted_diffs), lwd=2)
+abline(v=mean(abs(permuted_diffs)), col='red', lw=2)
+
+p_1tailed <- sum(permuted_diffs > observed_diff) / nperms
+p_2tailed <- sum(abs(permuted_diffs) > observed_diff) / nperms
+
+out1 <- paste('one-tailed p-value:', p_1tailed)
+out2 <- paste('two-tailed p-value:', p_2tailed)
+cat(out1, out2, sep='\n')
+
+alpha = 0.01
+
+if (p_1tailed < alpha) {
+  print('According to one-tailed test: reject null hypothesis') 
+} else { 
+  print('According to one-tailed test: fail to reject null hypothesis')
+}
+```
+
+As we can see from the graph above, the mean difference is around 2.5. Also, we can notice some negative values indicating that in some cases CLEC mean time was smaller than ILEC mean time.
+
+## Question 3
+
+**(a-b)**
+
+```{r}
+gt_eq <- function(a, b) {
+  ifelse(a > b, 1, 0) + ifelse(a == b, 0.5, 0)
+}
+
+W <- sum(outer(customers$CLEC, customers$ILEC, FUN = gt_eq))
+
+n1 <- length(customers$CLEC) 
+n2 <- length(customers$ILEC) 
+
+wilcox_p_1tail <- 1 - pwilcox(W, n1, n2)
+out1 <- paste('W statistic:', W)
+out2 <- paste('one-tailed p-value for W:', wilcox_p_1tail)
+cat(out1, out2, sep='\n')
+```
+
+**(c)**
+
+```{r}
+wilcox.test(customers$CLEC, customers$ILEC, alternative = "greater")
+```
+
+**(d)**
+
+Since the p-value is much smaller than the significance level (0.01) therefore we should reject the null hypothesis.
+
+## Question 4
+
+**(a)**
+
+```{r}
+norm_qq_plot <- function(values) { 
+  probs1000 <- seq(0, 1, 0.001)
+  q_vals <- quantile(values, probs=probs1000)
+  q_norm <- qnorm(probs1000, mean=mean(values), sd=sd(values))
+  plot(q_norm, q_vals, xlab="normal quantiles", ylab="values quantiles")
+  abline(a=0, b=1, col="red", lwd=2)
+
+
+}
+```
+
+**(b)**
+
+```{r}
+par(mfrow=c(1,2))
+
+set.seed(978234)
+d1 <- rnorm(n=500, mean=15, sd=5)
+d2 <- rnorm(n=200, mean=30, sd=5)
+d3 <- rnorm(n=100, mean=45, sd=5)
+d123 <- c(d1, d2, d3)
+
+plot(density(d123))
+norm_qq_plot(d123)
+```
+
+The red line shows where the points would fall if the dataset were normally distributed. Looking at the Q-Q plot for the second graph we can see that the theoretical quantile should be around 40, when in fact it is around 45. The point’s trend upward shows that the actual quantiles are much greater than the theoretical quantiles. 
+
+If the data is normally distributed, the points will fall on the 45-degree reference line. If the data is not normally distributed, the points will deviate from the reference line. As we can see from the graph, points deviate a bit therefore we can't say that data is not really normally distributed.
+
+**(c)**
+
+```{r}
+par(mfrow=c(1,2))
+norm_qq_plot(customers$CLEC)
+norm_qq_plot(customers$ILEC)
+```
+
+As we can see, both CLEC and ILEC samples are not normally distributed.

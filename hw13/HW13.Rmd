@@ -1,0 +1,102 @@
+---
+output:
+  pdf_document:
+    latex_engine: xelatex
+---
+
+## Student ID: 112077423
+
+```{r message=FALSE}
+library(seminr)
+library(tidyr)
+library(tidyverse)
+```
+
+## Question 1(a)
+
+```{r}
+df <- read.csv('security_data_sem.csv', header=TRUE)
+#head(df)
+```
+
+```{r}
+sec_mm <- constructs(
+  composite('TRUST', multi_items('TRST', 1:4)),
+  composite('SEC', multi_items('PSEC', 1:4)),
+  composite('REP', multi_items('PREP', 1:4)),
+  composite('INV', multi_items('PINV', 1:3)),
+  composite('POL', multi_items('PPSS', 1:3)),
+  composite('FAML', single_item('FAML1')),
+  interaction_term(iv='REP', moderator='POL', method=orthogonal)
+)
+
+sec_sm <- relationships(
+  paths(from=c('REP', 'INV', 'POL', 'FAML', 'REP*POL'), to='SEC'),
+  paths(from='SEC', to='TRUST')
+)
+
+sec_pls <- estimate_pls(data=df, measurement_model=sec_mm, structural_model=sec_sm)
+```
+
+## Question 1(b)
+
+```{r fig.align = "center"}
+plot(sec_pls)
+```
+
+```{r}
+sec_report <- summary(sec_pls)
+knitr::kable(sec_report$weights)
+```
+
+```{r}
+knitr::kable(sec_report$loadings)
+```
+
+```{r}
+knitr::kable(sec_report$paths)
+```
+
+```{r}
+boot_pls <- bootstrap_model(sec_pls, nboot = 1000)
+boot_report <- summary(boot_pls)
+knitr::kable(boot_report$bootstrapped_paths)
+```
+
+## Question 2(a)
+
+```{r}
+sec_cf_mm <- constructs(
+  reflective('TRUST', multi_items('TRST', 1:4)),
+  reflective('SEC', multi_items('PSEC', 1:4)),
+  reflective('REP', multi_items('PREP', 1:4)),
+  reflective('INV', multi_items('PINV', 1:3)),
+  reflective('POL', multi_items('PPSS', 1:3)),
+  reflective('FAML', single_item('FAML1')),
+  interaction_term(iv='REP', moderator='POL', method=orthogonal)
+)
+
+sec_cf_pls <- estimate_cbsem(
+  data=df,
+  measurement_model=sec_cf_mm,
+  structural_model=sec_sm
+)
+```
+
+## Question 2(b)
+
+```{r}
+plot(sec_cf_pls)
+```
+
+```{r}
+sec_cf_report <- summary(sec_cf_pls)
+knitr::kable(sec_cf_pls$factor_loadings)
+```
+
+```{r}
+knitr::kable(sec_cf_report$paths$coefficients)
+knitr::kable(sec_cf_report$paths$pvalues)
+```
+
+![](pls.jpg)

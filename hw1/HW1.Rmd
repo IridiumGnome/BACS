@@ -1,0 +1,136 @@
+---
+output: pdf_document
+# 112077423
+---
+
+## Student ID: 112077423
+
+```{r message=FALSE}
+library(ggplot2)
+```
+
+```{r}
+# read file
+customers_df <- read.delim('customers.txt')
+# print first 6 elements in dataframe
+head(customers_df)
+```
+
+## Question 1
+
+*Find the 5th element in the original list.*
+
+```{r}
+fifth <- customers_df[5,]
+print(paste('The 5th element is', fifth, sep=' '))
+```
+
+## Question 2
+
+*Find the fifth lowest age.*
+
+```{r}
+# sort in ascending order
+tmp <- customers_df[order(customers_df$age, decreasing=FALSE), ]
+fifth_lowest <- tmp[5]
+print(paste('The 5th lowest element is', fifth_lowest, sep=' '))
+```
+
+## Question 3
+
+*Extract the five lowest ages together.*
+
+```{r}
+five_lowest <- head(tmp, 5)
+five_lowest
+```
+
+\newpage
+## Student ID: 112077423
+
+## Question 4
+
+*Get the five highest ages by first sorting them in decreasing order first.*
+
+```{r}
+# sort in descending order
+tmp2 <- customers_df[order(customers_df$age, decreasing=TRUE), ]
+five_highest <- head(tmp2, 5)
+five_highest
+```
+
+## Question 5
+
+*Find the average (mean) age.*
+
+```{r}
+mean_age <- mean(customers_df$age)
+print(paste('The average is', mean_age, sep=' '))
+```
+
+## Question 6
+
+*Find the standard deviation of ages.*
+
+```{r}
+std <- sd(customers_df$age)
+print(paste('The standard deviation is', std, sep=' '))
+```
+
+## Question 7
+
+*Create a new variable with the difference between each age and the mean age.*
+
+```{r}
+age_diff <- customers_df$age - mean_age
+```
+
+## Question 8
+
+*Find the average of age_diff.*
+
+```{r}
+diff_mean <- mean(age_diff)
+diff_mean
+```
+
+\newpage
+## Student ID: 112077423
+
+## Question 9a
+
+*Visualize the raw data in form of histogram.*
+
+```{r fig.align='center'}
+ggplot(data=customers_df, aes(x=age)) + 
+  geom_histogram(color="black", fill="white", bins=20) +
+  theme_minimal() 
+```
+
+\newpage
+## Student ID: 112077423
+
+## Question 9b
+
+*Visualize the raw data in form of density plot.*
+
+```{r fig.align='center'}
+ggplot(data=customers_df, aes(x=age)) + 
+  geom_density(color="darkblue") +
+  theme_minimal() 
+```
+
+\newpage
+## Student ID: 112077423
+
+## Question 9c
+
+*Visualize the raw data in form of boxplot+stripchart.*
+
+```{r fig.align='center'}
+ggplot(data=customers_df, aes(x='', y = age)) + 
+  geom_boxplot() +
+  geom_jitter(position=position_jitter(0.2), color='darkblue', shape=17) + 
+  theme_minimal() +
+  labs(x="")
+```
